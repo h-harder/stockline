@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Stockline — Inventory</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --ink:#0f172a;        /* slate-900 */
+    --ink-soft:#334155;   /* slate-700 */
+    --line:#e2e8f0;       /* slate-200 */
+    --muted:#94a3b8;      /* slate-400 */
+    --bg:#f8fafc;         /* slate-50 */
+    --amber:#fbbf24;      /* amber-400 */
+    --amber-soft:#fef3c7; /* amber-100 */
+    --amber-text:#92400e; /* amber-800 */
+    --rose:#e11d48;
+    --rose-soft:#ffe4e6;
+    --emerald:#059669;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+  }
+  .font-display{ font-family:'Oswald',sans-serif; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+
+  header{ background:var(--ink); color:#fff; }
+  .wrap{ max-width:640px; margin:0 auto; padding:0 16px; }
+  .brand{ display:flex; align-items:center; gap:8px; padding-top:20px; }
+  .brand h1{ font-size:18px; letter-spacing:.12em; text-transform:uppercase; margin:0; }
+  .tabs{ display:flex; gap:24px; margin-top:16px; }
+  .tab-btn{
+    background:none; border:none; color:var(--muted); font:inherit; font-weight:500;
+    font-size:14px; padding:0 0 12px 0; border-bottom:2px solid transparent; cursor:pointer;
+  }
+  .tab-btn.active{ color:#fff; border-bottom-color:var(--amber); }
+
+  main{ padding:16px 0 110px; }
+
+  .search-row{ position:relative; margin-bottom:10px; }
+  .search-row input{
+    width:100%; padding:9px 12px 9px 34px; border:1px solid #cbd5e1; border-radius:10px;
+    font:14px 'Inter',sans-serif; background:#fff;
+  }
+  .search-row input:focus{ outline:2px solid var(--amber); }
+  .search-icon{ position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); }
+
+  .summary{ display:flex; gap:16px; font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .summary .low{ color:var(--rose); font-weight:600; display:flex; align-items:center; gap:4px; }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .empty{ padding:44px 16px; text-align:center; color:var(--muted); }
+  .empty svg{ opacity:.4; margin-bottom:8px; }
+
+  .item-row{
+    display:flex; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid #f1f5f9;
+  }
+  .item-row:last-child{ border-bottom:none; }
+  .item-info{ flex:1; min-width:0; }
+  .item-name-row{ display:flex; align-items:center; gap:8px; }
+  .item-name{ font-weight:600; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .badge-low{
+    font-size:10px; text-transform:uppercase; letter-spacing:.04em; background:var(--rose-soft);
+    color:var(--rose); padding:2px 6px; border-radius:5px; font-weight:700; display:inline-flex; align-items:center; gap:3px; flex:none;
+  }
+  .item-barcode{ font-size:11px; color:var(--muted); margin:2px 0 0; }
+  .item-meta{ display:flex; align-items:center; gap:8px; margin-top:4px; }
+  .chip{ font-size:11px; background:#f1f5f9; color:var(--ink-soft); padding:2px 8px; border-radius:999px; }
+  .pos-count{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:3px; }
+
+  .qty-ctrl{ display:flex; align-items:center; gap:4px; flex:none; }
+  .qty-btn{
+    width:26px; height:26px; border:1px solid #cbd5e1; border-radius:7px; background:#fff;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .qty-btn:hover{ background:#f1f5f9; }
+  .qty-val{ width:28px; text-align:center; font-weight:600; font-size:14px; }
+
+  .row-actions{ display:flex; gap:2px; flex:none; margin-left:4px; }
+  .icon-btn{ background:none; border:none; padding:5px; color:var(--muted); cursor:pointer; border-radius:6px; }
+  .icon-btn:hover{ color:var(--ink-soft); background:#f1f5f9; }
+  .icon-btn.danger:hover{ color:var(--rose); }
+
+  .fab{
+    position:fixed; bottom:22px; right:22px; width:56px; height:56px; border-radius:999px;
+    background:var(--amber); color:var(--ink); border:none; display:flex; align-items:center;
+    justify-content:center; box-shadow:0 8px 20px rgba(0,0,0,.25); cursor:pointer;
+  }
+  .fab:active{ transform:scale(.95); }
+
+  .pos-note{ font-size:12px; color:var(--ink-soft); line-height:1.5; background:#fff; border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:12px; }
+  .pos-card{ background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:12px; }
+  .pos-card-top{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; }
+  .pos-name-row{ display:flex; align-items:center; gap:8px; }
+  .pos-name{ font-weight:600; margin:0; }
+  .pos-builtin{ font-size:10px; text-transform:uppercase; background:var(--amber-soft); color:var(--amber-text); padding:2px 6px; border-radius:5px; font-weight:700; }
+  .pos-sub{ font-size:12px; color:var(--muted); margin:2px 0 0; }
+  .connect-btn{
+    display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:7px 14px;
+    border-radius:999px; border:none; cursor:pointer;
+  }
+  .connect-btn.connect{ background:var(--ink); color:#fff; }
+  .connect-btn.disconnect{ background:#f1f5f9; color:var(--ink-soft); }
+  .connected-flag{ display:flex; align-items:center; gap:5px; font-size:12px; font-weight:600; color:var(--emerald); }
+  .pos-toggle{
+    width:100%; display:flex; align-items:center; justify-content:space-between; background:none; border:none;
+    border-top:1px solid #f1f5f9; padding:8px 16px; font-size:12px; color:var(--muted); cursor:pointer;
+  }
+  .pos-catalog{ border-top:1px solid #f1f5f9; max-height:180px; overflow-y:auto; }
+  .pos-catalog-row{ display:flex; justify-content:space-between; padding:7px 16px; font-size:12px; border-bottom:1px solid #f8fafc; }
+  .pos-catalog-row span:last-child{ color:var(--muted); }
+
+  /* modal */
+  .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:flex-end; justify-content:center; z-index:40; padding:0; }
+  @media(min-width:600px){ .overlay{ align-items:center; padding:16px; } }
+  .modal{ background:#fff; width:100%; max-width:440px; border-radius:16px 16px 0 0; max-height:92vh; overflow-y:auto; }
+  @media(min-width:600px){ .modal{ border-radius:16px; } }
+  .modal-head{ position:sticky; top:0; background:var(--ink); color:#fff; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+  .modal-head h2{ margin:0; font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--amber); font-weight:700; }
+  .modal-head button{ background:none; border:none; color:#cbd5e1; cursor:pointer; }
+  .modal-body{ padding:20px; display:flex; flex-direction:column; gap:16px; }
+  .field label{ display:block; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
+  .field input{ width:100%; padding:9px 12px; border:1px solid #cbd5e1; border-radius:9px; font:14px 'Inter',sans-serif; }
+  .field input:focus{ outline:2px solid var(--amber); }
+  .barcode-row{ display:flex; gap:8px; }
+  .barcode-row input{ flex:1; font-family:'IBM Plex Mono',monospace; }
+  .cam-btn{ background:var(--ink); color:#fff; border:none; border-radius:9px; padding:0 12px; cursor:pointer; }
+  .lookup-status{ font-size:12px; min-height:16px; display:flex; align-items:center; gap:5px; }
+  .lookup-status.loading{ color:var(--muted); }
+  .lookup-status.found{ color:var(--emerald); }
+  .lookup-status.notfound{ color:var(--muted); }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .qty-field{ display:flex; align-items:center; gap:8px; }
+  .qty-field input{ text-align:center; }
+  .qty-field-btn{ width:34px; height:34px; border:1px solid #cbd5e1; border-radius:9px; background:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .pos-pill{
+    font-size:11px; padding:6px 12px; border-radius:999px; border:1px solid #cbd5e1; background:#fff;
+    color:var(--muted); cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+  }
+  .pos-pill.on{ background:var(--amber); border-color:var(--amber); color:var(--ink); font-weight:600; }
+  .pos-hint{ font-size:11px; color:var(--muted); }
+  .modal-actions{ padding:0 20px 20px; display:flex; gap:10px; }
+  .btn{ flex:1; padding:11px; border-radius:9px; font-size:14px; font-weight:600; cursor:pointer; border:none; }
+  .btn.secondary{ background:#fff; border:1px solid #cbd5e1; color:var(--ink-soft); }
+  .btn.primary{ background:var(--ink); color:#fff; }
+  .btn.primary:disabled{ background:#cbd5e1; cursor:not-allowed; }
+
+  /* camera overlay */
+  .cam-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:50; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:16px; }
+  .cam-box{ width:100%; max-width:360px; }
+  .cam-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .cam-head span{ color:var(--amber); font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; }
+  .cam-head button{ background:none; border:none; color:#cbd5e1; cursor:pointer; }
+  .cam-frame{ position:relative; border:2px solid var(--amber); border-radius:10px; overflow:hidden; }
+  .cam-frame video{ width:100%; aspect-ratio:1/1; object-fit:cover; display:block; }
+  .scan-line{ position:absolute; left:0; right:0; top:50%; height:2px; background:var(--amber); box-shadow:0 0 8px 2px rgba(251,191,36,.8); animation:pulse 1.4s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:.4;} 50%{opacity:1;} }
+  .cam-msg{ background:#1e293b; color:#e2e8f0; font-size:13px; padding:16px; border-radius:10px; }
+  .cam-hint{ color:#94a3b8; font-size:12px; text-align:center; margin-top:10px; }
+
+  .hidden{ display:none !important; }
+  svg{ display:block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="11" y1="8" x2="11" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/><line x1="18" y1="8" x2="18" y2="16"/></svg>
+      <h1 class="font-display">Stockline</h1>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tabBtnInventory" onclick="setTab('inventory')">Inventory</button>
+      <button class="tab-btn" id="tabBtnPos" onclick="setTab('pos')">POS Connections</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div id="inventoryTab"></div>
+    <div id="posTab" class="hidden"></div>
+  </div>
+</main>
+
+<button class="fab" id="fabBtn" onclick="openAddModal()">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+</button>
+
+<div id="modalRoot"></div>
+
+<script>
+/* ---------------- Icons ---------------- */
+const ICONS = {
+  search: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+  alert: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  alertBig: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  link: `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
+  pencil: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`,
+  trash: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  plus: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  minus: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  x: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  camera: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
+  plug: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9.5 14.5 17a2.12 2.12 0 0 1-3 0l-4.5-4.5a2.12 2.12 0 0 1 0-3L14.5 2"/><line x1="9" y1="21" x2="15" y2="21"/></svg>`,
+  unplug: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="4" x2="20" y2="20"/><path d="M22 9.5 14.5 17a2.12 2.12 0 0 1-3 0l-4.5-4.5a2.12 2.12 0 0 1 0-3L14.5 2"/></svg>`,
+  chevDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`,
+  chevUp: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`,
+  dot: `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>`,
+  box: `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>`,
+};
+
+/* ---------------- Config & state ---------------- */
+const STORAGE_KEY = "stockline-data";
+const POS_LIST = [
+  { id: "square", name: "Square" },
+  { id: "shopify", name: "Shopify POS" },
+  { id: "clover", name: "Clover" },
+  { id: "toast", name: "Toast" },
+  { id: "lightspeed", name: "Lightspeed" },
+];
+
+let state = {
+  tab: "inventory",
+  inventory: [],
+  posConnections: {},
+  posCatalogs: { test: [] },
+  search: "",
+  expandedPos: null,
+  loaded: false,
+};
+
+let modalState = null; // { mode:'add'|'edit', item, linkedPos:[], lookupStatus, barcode }
+
+function uid(prefix){ return prefix + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ---------------- Storage ---------------- */
+async function loadData(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY);
+    if(res && res.value){
+      const d = JSON.parse(res.value);
+      state.inventory = d.inventory || [];
+      state.posConnections = d.posConnections || {};
+      state.posCatalogs = d.posCatalogs || { test: [] };
+    }
+  }catch(e){ /* nothing saved yet */ }
+  state.loaded = true;
+}
+
+async function saveData(){
+  if(!state.loaded) return;
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify({
+      inventory: state.inventory,
+      posConnections: state.posConnections,
+      posCatalogs: state.posCatalogs,
+    }));
+  }catch(e){ console.error("Save failed", e); }
+}
+
+/* ---------------- Barcode lookup ---------------- */
+async function lookupBarcode(code){
+  try{
+    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${encodeURIComponent(code)}`);
+    if(!res.ok) return null;
+    const data = await res.json();
+    if(data && Array.isArray(data.items) && data.items.length > 0){
+      const it = data.items[0];
+      return { name: it.title || "", brand: it.brand || "", category: it.category || "" };
+    }
+    return null;
+  }catch(e){ return null; }
+}
+
+/* ---------------- Tabs ---------------- */
+function setTab(tab){
+  state.tab = tab;
+  document.getElementById("tabBtnInventory").classList.toggle("active", tab === "inventory");
+  document.getElementById("tabBtnPos").classList.toggle("active", tab === "pos");
+  document.getElementById("inventoryTab").classList.toggle("hidden", tab !== "inventory");
+  document.getElementById("posTab").classList.toggle("hidden", tab !== "pos");
+  document.getElementById("fabBtn").classList.toggle("hidden", tab !== "inventory");
+  render();
+}
+
+/* ---------------- Sync helpers ---------------- */
+function syncItemToPos(item){
+  const allPos = ["test", ...POS_LIST.map(p => p.id)];
+  allPos.forEach(posId => {
+    if(!state.posCatalogs[posId]) state.posCatalogs[posId] = [];
+    const list = state.posCatalogs[posId];
+    const idx = list.findIndex(c => c.itemId === item.id);
+    if(item.posLinks && item.posLinks.includes(posId)){
+      const entry = { itemId: item.id, name: item.name, barcode: item.barcode, qty: item.qty, syncedAt: new Date().toISOString() };
+      if(idx >= 0) list[idx] = entry; else list.push(entry);
+    } else if(idx >= 0){
+      list.splice(idx, 1);
+    }
+  });
+}
+
+function removeItemEverywhere(id){
+  state.inventory = state.inventory.filter(i => i.id !== id);
+  Object.keys(state.posCatalogs).forEach(posId => {
+    state.posCatalogs[posId] = state.posCatalogs[posId].filter(c => c.itemId !== id);
+  });
+}
+
+/* ---------------- Item actions ---------------- */
+function changeQty(id, qty){
+  const item = state.inventory.find(i => i.id === id);
+  if(!item) return;
+  item.qty = Math.max(0, qty);
+  syncItemToPos(item);
+  saveData();
+  renderInventory();
+}
+
+function deleteItem(id){
+  removeItemEverywhere(id);
+  saveData();
+  renderInventory();
+}
+
+function editItem(id){
+  const item = state.inventory.find(i => i.id === id);
+  if(item) openEditModal(item);
+}
+
+function toggleConnect(posId){
+  state.posConnections[posId] = !state.posConnections[posId];
+  saveData();
+  renderPos();
+}
+
+function toggleExpandPos(posId){
+  state.expandedPos = state.expandedPos === posId ? null : posId;
+  renderPos();
+}
+
+/* ---------------- Render: Inventory tab ---------------- */
+function renderInventory(){
+  const el = document.getElementById("inventoryTab");
+  const q = state.search.toLowerCase();
+  const filtered = state.inventory.filter(i =>
+    i.name.toLowerCase().includes(q) || i.barcode.includes(q) || i.category.toLowerCase().includes(q)
+  );
+  const lowCount = state.inventory.filter(i => i.qty <= i.lowStock).length;
+
+  let rowsHtml;
+  if(filtered.length === 0){
+    rowsHtml = `<div class="empty">${ICONS.box}<p>${state.inventory.length === 0
+      ? "No items yet. Tap the + button to scan your first item."
+      : "Nothing matches that search."}</p></div>`;
+  } else {
+    rowsHtml = filtered.map(item => {
+      const isLow = item.qty <= item.lowStock;
+      const posCount = item.posLinks ? item.posLinks.length : 0;
+      return `
+        <div class="item-row">
+          <div class="item-info">
+            <div class="item-name-row">
+              <p class="item-name">${escapeHtml(item.name)}</p>
+              ${isLow ? `<span class="badge-low">${ICONS.alert} Low</span>` : ""}
+            </div>
+            <p class="item-barcode mono">${escapeHtml(item.barcode)}</p>
+            <div class="item-meta">
+              <span class="chip">${escapeHtml(item.category)}</span>
+              ${posCount > 0 ? `<span class="pos-count">${ICONS.link} ${posCount} POS</span>` : ""}
+            </div>
+          </div>
+          <div class="qty-ctrl">
+            <button class="qty-btn" onclick="changeQty('${item.id}', ${item.qty - 1})">${ICONS.minus}</button>
+            <span class="qty-val">${item.qty}</span>
+            <button class="qty-btn" onclick="changeQty('${item.id}', ${item.qty + 1})">${ICONS.plus}</button>
+          </div>
+          <div class="row-actions">
+            <button class="icon-btn" onclick="editItem('${item.id}')">${ICONS.pencil}</button>
+            <button class="icon-btn danger" onclick="deleteItem('${item.id}')">${ICONS.trash}</button>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  el.innerHTML = `
+    <div class="search-row">
+      <span class="search-icon">${ICONS.search}</span>
+      <input id="searchInput" placeholder="Search by name, barcode, or category" value="${escapeHtml(state.search)}" />
+    </div>
+    <div class="summary">
+      <span>${state.inventory.length} items</span>
+      ${lowCount > 0 ? `<span class="low">${ICONS.alert} ${lowCount} low stock</span>` : ""}
+    </div>
+    <div class="card">${rowsHtml}</div>
+  `;
+  document.getElementById("searchInput").addEventListener("input", e => {
+    state.search = e.target.value;
+    renderInventory();
+    document.getElementById("searchInput").focus();
+    const val = e.target.value;
+    document.getElementById("searchInput").value = val;
+    document.getElementById("searchInput").setSelectionRange(val.length, val.length);
+  });
+}
+
+/* ---------------- Render: POS tab ---------------- */
+function posCardHtml(posId, name, connected, isTest){
+  const catalog = state.posCatalogs[posId] || [];
+  const expanded = state.expandedPos === posId;
+  const connectBtn = isTest
+    ? `<span class="connected-flag">${ICONS.plug} Connected</span>`
+    : `<button class="connect-btn ${connected ? "disconnect" : "connect"}" onclick="toggleConnect('${posId}')">
+         ${connected ? ICONS.unplug + " Disconnect" : ICONS.plug + " Connect"}
+       </button>`;
+  const catalogSection = catalog.length > 0 ? `
+    <button class="pos-toggle" onclick="toggleExpandPos('${posId}')">
+      View synced items ${expanded ? ICONS.chevUp : ICONS.chevDown}
+    </button>
+    ${expanded ? `<div class="pos-catalog">${catalog.map(c => `
+      <div class="pos-catalog-row"><span>${escapeHtml(c.name)}</span><span class="mono">qty ${c.qty}</span></div>
+    `).join("")}</div>` : ""}
+  ` : "";
+
+  return `
+    <div class="pos-card">
+      <div class="pos-card-top">
+        <div>
+          <div class="pos-name-row">
+            <p class="pos-name">${name}</p>
+            ${isTest ? `<span class="pos-builtin">Built-in</span>` : ""}
+          </div>
+          <p class="pos-sub">${connected ? `${catalog.length} item${catalog.length === 1 ? "" : "s"} synced` : "Not connected"}</p>
+        </div>
+        ${connectBtn}
+      </div>
+      ${catalogSection}
+    </div>`;
+}
+
+function renderPos(){
+  const el = document.getElementById("posTab");
+  let html = `
+    <div class="pos-note">
+      The Test POS below is fully working — items you sync to it actually appear in its catalog.
+      The other systems simulate the connection flow here; wiring up real Square, Shopify, Clover,
+      Toast, or Lightspeed accounts needs a backend to hold their API keys securely, which this
+      preview doesn't have.
+    </div>
+    ${posCardHtml("test", "Test POS", true, true)}
+  `;
+  POS_LIST.forEach(p => {
+    html += posCardHtml(p.id, p.name, !!state.posConnections[p.id], false);
+  });
+  el.innerHTML = html;
+}
+
+function render(){
+  renderInventory();
+  renderPos();
+}
+
+function escapeHtml(str){
+  const d = document.createElement("div");
+  d.textContent = str == null ? "" : String(str);
+  return d.innerHTML;
+}
+
+/* ---------------- Item modal ---------------- */
+function connectedPosIds(){
+  return POS_LIST.filter(p => state.posConnections[p.id]).map(p => p.id);
+}
+
+function openAddModal(){
+  modalState = { mode: "add", linkedPos: ["test"], lookupStatus: "idle" };
+  renderModal();
+}
+
+function openEditModal(item){
+  modalState = { mode: "edit", item, linkedPos: [...(item.posLinks || [])], lookupStatus: "idle" };
+  renderModal();
+}
+
+function closeModal(){
+  modalState = null;
+  document.getElementById("modalRoot").innerHTML = "";
+}
+
+function togglePosPill(posId){
+  const idx = modalState.linkedPos.indexOf(posId);
+  if(idx >= 0) modalState.linkedPos.splice(idx, 1);
+  else modalState.linkedPos.push(posId);
+  renderModal(true);
+}
+
+async function submitBarcodeLookup(){
+  const code = document.getElementById("mBarcode").value.trim();
+  if(!code) return;
+  modalState.lookupStatus = "loading";
+  renderModal(true);
+  const result = await lookupBarcode(code);
+  if(result && result.name){
+    document.getElementById("mName").value = result.name;
+    document.getElementById("mBrand").value = result.brand;
+    document.getElementById("mCategory").value = result.category;
+    modalState.lookupStatus = "found";
+  } else {
+    modalState.lookupStatus = "notfound";
+  }
+  renderModal(true);
+}
+
+function qtyStep(delta){
+  const input = document.getElementById("mQty");
+  const next = Math.max(0, (parseInt(input.value, 10) || 0) + delta);
+  input.value = next;
+}
+
+function saveModalItem(){
+  const barcode = document.getElementById("mBarcode") ? document.getElementById("mBarcode").value.trim() : modalState.item.barcode;
+  const name = document.getElementById("mName").value.trim();
+  const brand = document.getElementById("mBrand").value.trim();
+  const category = document.getElementById("mCategory").value.trim() || "Uncategorized";
+  const qty = parseInt(document.getElementById("mQty").value, 10) || 0;
+  const lowStock = parseInt(document.getElementById("mLowStock").value, 10) || 0;
+
+  if(!barcode || !name) return;
+
+  const itemData = {
+    id: modalState.mode === "edit" ? modalState.item.id : uid("item"),
+    barcode, name, brand, category, qty, lowStock,
+    posLinks: [...modalState.linkedPos],
+  };
+
+  const idx = state.inventory.findIndex(i => i.id === itemData.id);
+  if(idx >= 0) state.inventory[idx] = itemData;
+  else state.inventory.push(itemData);
+
+  syncItemToPos(itemData);
+  saveData();
+  closeModal();
+  render();
+}
+
+function renderModal(preserveFocus){
+  const root = document.getElementById("modalRoot");
+  if(!modalState){ root.innerHTML = ""; return; }
+  const isEdit = modalState.mode === "edit";
+  const item = modalState.item || {};
+  const cIds = connectedPosIds();
+
+  const statusHtml = {
+    idle: "",
+    loading: `<span class="lookup-status loading">Looking up item…</span>`,
+    found: `<span class="lookup-status found">Found it — details filled in below.</span>`,
+    notfound: `<span class="lookup-status notfound">Couldn't find this one automatically — enter the details below.</span>`,
+  }[modalState.lookupStatus || "idle"];
+
+  const posPills = `
+    <button class="pos-pill ${modalState.linkedPos.includes("test") ? "on" : ""}" onclick="togglePosPill('test')">${ICONS.dot} Test POS</button>
+    ${POS_LIST.filter(p => cIds.includes(p.id)).map(p => `
+      <button class="pos-pill ${modalState.linkedPos.includes(p.id) ? "on" : ""}" onclick="togglePosPill('${p.id}')">${p.name}</button>
+    `).join("")}
+    ${cIds.length === 0 ? `<span class="pos-hint">Connect a POS system in the POS tab to sync there too.</span>` : ""}
+  `;
+
+  root.innerHTML = `
+    <div class="overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <div class="modal-head">
+          <h2>${isEdit ? "Edit item" : "Add item"}</h2>
+          <button onclick="closeModal()">${ICONS.x}</button>
+        </div>
+        <div class="modal-body">
+          ${!isEdit ? `
+          <div class="field">
+            <label>Barcode</label>
+            <div class="barcode-row">
+              <input id="mBarcode" class="mono" placeholder="Scan or type the code, then press Enter" value="${escapeHtml(modalState.barcode || "")}"
+                onkeydown="if(event.key==='Enter'){event.preventDefault(); submitBarcodeLookup();}" />
+              <button class="cam-btn" onclick="openCameraScanner()">${ICONS.camera}</button>
+            </div>
+            <div style="margin-top:6px;">${statusHtml}</div>
+          </div>` : ""}
+
+          <div class="field">
+            <label>Item name</label>
+            <input id="mName" placeholder="e.g. Sea salt kettle chips, 8oz" value="${escapeHtml(item.name || "")}" />
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label>Brand</label>
+              <input id="mBrand" value="${escapeHtml(item.brand || "")}" />
+            </div>
+            <div class="field">
+              <label>Category</label>
+              <input id="mCategory" value="${escapeHtml(item.category || "")}" />
+            </div>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label>Quantity</label>
+              <div class="qty-field">
+                <button class="qty-field-btn" onclick="qtyStep(-1)">${ICONS.minus}</button>
+                <input id="mQty" type="number" value="${item.qty ?? 1}" />
+                <button class="qty-field-btn" onclick="qtyStep(1)">${ICONS.plus}</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Low stock at</label>
+              <input id="mLowStock" type="number" value="${item.lowStock ?? 5}" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Sync to POS</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">${posPills}</div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn primary" onclick="saveModalItem()">${isEdit ? "Save changes" : "Add to inventory"}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  if(!isEdit && !preserveFocus){
+    const bInput = document.getElementById("mBarcode");
+    if(bInput) bInput.focus();
+  }
+  // keep barcode value in modalState so re-render (e.g. after lookup) doesn't lose it
+  const bEl = document.getElementById("mBarcode");
+  if(bEl) bEl.addEventListener("input", e => { modalState.barcode = e.target.value; });
+}
+
+/* ---------------- Camera scanner ---------------- */
+let cameraStream = null;
+let cameraRaf = null;
+
+async function openCameraScanner(){
+  const root = document.getElementById("modalRoot");
+  const supported = "BarcodeDetector" in window;
+  const camDiv = document.createElement("div");
+  camDiv.className = "cam-overlay";
+  camDiv.id = "camOverlay";
+  camDiv.innerHTML = `
+    <div class="cam-box">
+      <div class="cam-head">
+        <span>Scan barcode</span>
+        <button onclick="closeCameraScanner()">${ICONS.x}</button>
+      </div>
+      <div id="camContent">
+        ${supported ? `
+          <div class="cam-frame">
+            <video id="camVideo" muted playsinline></video>
+            <div class="scan-line"></div>
+          </div>
+          <p class="cam-hint">Hold the barcode steady inside the frame.</p>
+        ` : `
+          <div class="cam-msg">Camera scanning isn't supported in this browser. Enter the code manually,
+          or use a USB/Bluetooth barcode scanner — it types the code like a keyboard.</div>
+        `}
+      </div>
+    </div>
+  `;
+  root.appendChild(camDiv);
+
+  if(!supported) return;
+
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    cameraStream = stream;
+    const video = document.getElementById("camVideo");
+    if(!video) return; // overlay may have closed already
+    video.srcObject = stream;
+    await video.play();
+    const detector = new window.BarcodeDetector({
+      formats: ["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"],
+    });
+    const loop = async () => {
+      if(!cameraStream) return;
+      try{
+        const codes = await detector.detect(video);
+        if(codes && codes.length > 0){
+          const value = codes[0].rawValue;
+          closeCameraScanner();
+          modalState.barcode = value;
+          modalState.lookupStatus = "idle";
+          renderModal(true);
+          const bInput = document.getElementById("mBarcode");
+          if(bInput) bInput.value = value;
+          await submitBarcodeLookup();
+          return;
+        }
+      }catch(e){ /* keep scanning */ }
+      cameraRaf = requestAnimationFrame(loop);
+    };
+    cameraRaf = requestAnimationFrame(loop);
+  }catch(e){
+    const content = document.getElementById("camContent");
+    if(content) content.innerHTML = `<div class="cam-msg">Camera access was blocked or unavailable.</div>`;
+  }
+}
+
+function closeCameraScanner(){
+  if(cameraRaf) cancelAnimationFrame(cameraRaf);
+  cameraRaf = null;
+  if(cameraStream){ cameraStream.getTracks().forEach(t => t.stop()); cameraStream = null; }
+  const el = document.getElementById("camOverlay");
+  if(el) el.remove();
+}
+
+/* ---------------- Init ---------------- */
+(async function init(){
+  await loadData();
+  render();
+})();
+</script>
+</body>
+</html>
